@@ -1,96 +1,263 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:wifi_iot/wifi_iot.dart';
+import 'package:wifi_scan/wifi_scan.dart';
 
 void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+/// Example app for wifi_scan plugin.
+class MyApp extends StatefulWidget {
+  /// Default constructor for [MyApp] widget.
+  const MyApp({Key? key}) : super(key: key);
 
-  // This widget is the root of your application.
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  List<WiFiAccessPoint> accessPoints = <WiFiAccessPoint>[];
+  bool shouldCheckCan = true;
+
+  Future<void> _startScan(BuildContext context) async {
+    // check if "can" startScan
+    if (shouldCheckCan) {
+      // check if can-startScan
+      final can = await WiFiScan.instance.canStartScan();
+
+      // if can-not, then show error
+      if (can != CanStartScan.yes) {
+        if (mounted) kShowSnackBar(context, "Cannot start scan: $can");
+        return;
+      }
+    }
+
+    // call startScan API
+    final result = await WiFiScan.instance.startScan();
+
+    if (mounted) kShowSnackBar(context, "startScan: $result");
+    // reset access points.
+    setState(() => accessPoints = <WiFiAccessPoint>[]);
+  }
+
+  Future<bool> _canGetScannedResults(BuildContext context) async {
+    if (shouldCheckCan) {
+      // check if can-getScannedResults
+      final can = await WiFiScan.instance.canGetScannedResults();
+      // if can-not, then show error
+      if (can != CanGetScannedResults.yes) {
+        if (mounted) kShowSnackBar(context, "Cannot get scanned results: $can");
+        accessPoints = <WiFiAccessPoint>[];
+        return false;
+      }
+    }
+    return true;
+  }
+
+  Future<void> _getScannedResults(BuildContext context) async {
+    if (await _canGetScannedResults(context)) {
+      // get scanned results
+      final results = await WiFiScan.instance.getScannedResults();
+      setState(() => accessPoints = results);
+    }
+  }
+
+  // build toggle with label
+  Widget _buildToggle({
+    String? label,
+    bool value = false,
+    ValueChanged<bool>? onChanged,
+    Color? activeColor,
+  }) =>
+      Row(
+        children: [
+          if (label != null) Text(label),
+          Switch(value: value, onChanged: onChanged, activeColor: activeColor),
+        ],
+      );
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
+      home: Scaffold(
+        appBar: AppBar(
+          title: const Text('Wifi'),
+          actions: [
+            _buildToggle(
+                label: "Check can?",
+                value: shouldCheckCan,
+                onChanged: (v) => setState(() => shouldCheckCan = v),
+                activeColor: Colors.purple)
+          ],
+        ),
+        body: Builder(
+          builder: (context) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.max,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.perm_scan_wifi),
+                      label: const Text('SCAN'),
+                      onPressed: () async => _startScan(context),
+                    ),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('GET'),
+                      onPressed: () async => _getScannedResults(context),
+                    ),
+                  ],
+                ),
+                const Divider(),
+                Flexible(
+                  child: Center(
+                    child: accessPoints.isEmpty
+                        ? const Text("NO SCANNED RESULTS")
+                        : ListView.builder(
+                            itemCount: accessPoints.length,
+                            itemBuilder: (context, i) =>
+                                _AccessPointTile(accessPoint: accessPoints[i])),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+/// Show tile for AccessPoint.
+///
+/// Can see details when tapped.
+class _AccessPointTile extends StatefulWidget {
+  final WiFiAccessPoint accessPoint;
 
-  final String title;
+  const _AccessPointTile({Key? key, required this.accessPoint})
+      : super(key: key);
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<_AccessPointTile> createState() => _AccessPointTileState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _AccessPointTileState extends State<_AccessPointTile> {
+  final passwordController = TextEditingController();
 
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
+  @override
+  void dispose() {
+    // Clean up the controller when the widget is disposed.
+    passwordController.dispose();
+    super.dispose();
+  }
+
+  // build row that can display info, based on label: value pair.
+  Widget _buildInfo(String label, dynamic value) => Container(
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: Colors.grey)),
+        ),
+        child: Row(
+          children: [
+            Text(
+              "$label: ",
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            Expanded(child: Text(value.toString()))
+          ],
+        ),
+      );
+
+  Future<void> connectToWifi(String ssid, String bssid, String password) async {
+    try {
+      final res = await WiFiForIoTPlugin.connect(
+        ssid,
+        bssid: bssid,
+        password: password,
+        joinOnce: true,
+        security: NetworkSecurity.WPA,
+        withInternet: false,
+      );
+      print(res);
+      if (res) await WiFiForIoTPlugin.forceWifiUsage(true);
+    } catch (error) {
+      print(error);
+      print('error');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
+    final title = widget.accessPoint.ssid.isNotEmpty
+        ? widget.accessPoint.ssid
+        : "**EMPTY**";
+
+    final signalIcon = widget.accessPoint.level >= -80
+        ? Icons.signal_wifi_4_bar
+        : Icons.signal_wifi_0_bar;
+    return ListTile(
+        visualDensity: VisualDensity.compact,
+        leading: Icon(signalIcon),
+        title: Text(title),
+        subtitle: Text(widget.accessPoint.capabilities),
+        onTap: () {
+          // WiFiForIoTPlugin.disconnect();
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text(title),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // _buildInfo("BSSDI", widget.accessPoint.bssid),
+                    // _buildInfo("Capability", widget.accessPoint.capabilities),
+                    // _buildInfo(
+                    //     "frequency", "${widget.accessPoint.frequency}MHz"),
+                    // _buildInfo("level", widget.accessPoint.level),
+                    // _buildInfo("standard", widget.accessPoint.standard),
+                    // _buildInfo("centerFrequency0",
+                    //     "${widget.accessPoint.centerFrequency0}MHz"),
+                    // _buildInfo("centerFrequency1",
+                    //     "${widget.accessPoint.centerFrequency1}MHz"),
+                    // _buildInfo("channelWidth", widget.accessPoint.channelWidth),
+                    // _buildInfo("isPasspoint", widget.accessPoint.isPasspoint),
+                    // _buildInfo("operatorFriendlyName",
+                    //     widget.accessPoint.operatorFriendlyName),
+                    // _buildInfo("venueName", widget.accessPoint.venueName),
+                    // _buildInfo("is80211mcResponder",
+                    //     widget.accessPoint.is80211mcResponder),
+                    TextField(
+                      decoration: const InputDecoration(hintText: 'Password'),
+                      obscureText: true,
+                      controller: passwordController,
+                    ),
+                    const SizedBox(
+                      height: 24,
+                    ),
+                    TextButton(
+                        onPressed: () => connectToWifi(widget.accessPoint.ssid,
+                            widget.accessPoint.bssid, passwordController.text),
+                        child: const Text('Connect'))
+                  ],
+                ),
+              ),
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
-    );
+          );
+        });
   }
+}
+
+/// Show snackbar.
+void kShowSnackBar(BuildContext context, String message) {
+  if (kDebugMode) print(message);
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(message)));
 }
