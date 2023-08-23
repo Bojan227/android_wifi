@@ -122,7 +122,7 @@ class _MyAppState extends State<MyApp> {
                             isConnected = res;
                           });
                         },
-                        icon: Icon(Icons.connect_without_contact),
+                        icon: const Icon(Icons.connect_without_contact),
                         label: const Text('Connected?')),
                     Text("$isConnected")
                   ],
@@ -131,6 +131,10 @@ class _MyAppState extends State<MyApp> {
                 ElevatedButton(
                     onPressed: () async {
                       await WiFiForIoTPlugin.disconnect();
+                      final String ssid =
+                          await WiFiForIoTPlugin.getSSID() ?? "";
+
+                      await WiFiForIoTPlugin.removeWifiNetwork(ssid);
                     },
                     child: const Text('Disconnect')),
                 Flexible(
