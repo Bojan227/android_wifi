@@ -21,6 +21,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   List<WiFiAccessPoint> accessPoints = <WiFiAccessPoint>[];
   bool shouldCheckCan = true;
+  bool isConnected = false;
 
   Future<void> _startScan(BuildContext context) async {
     // check if "can" startScan
@@ -61,6 +62,7 @@ class _MyAppState extends State<MyApp> {
     if (await _canGetScannedResults(context)) {
       // get scanned results
       final results = await WiFiScan.instance.getScannedResults();
+      print('results $results');
       setState(() => accessPoints = results);
     }
   }
@@ -95,27 +97,42 @@ class _MyAppState extends State<MyApp> {
         ),
         body: Builder(
           builder: (context) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 2),
             child: Column(
               mainAxisSize: MainAxisSize.max,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     ElevatedButton.icon(
                       icon: const Icon(Icons.perm_scan_wifi),
                       label: const Text('SCAN'),
-                      onPressed: () async => _startScan(context),
+                      onPressed: () async => await _startScan(context),
                     ),
                     ElevatedButton.icon(
                       icon: const Icon(Icons.refresh),
                       label: const Text('GET'),
-                      onPressed: () async => _getScannedResults(context),
+                      onPressed: () async => await _getScannedResults(context),
                     ),
+                    ElevatedButton.icon(
+                        onPressed: () async {
+                          final res = await WiFiForIoTPlugin.isConnected();
+
+                          setState(() {
+                            isConnected = res;
+                          });
+                        },
+                        icon: Icon(Icons.connect_without_contact),
+                        label: const Text('Connected?')),
+                    Text("$isConnected")
                   ],
                 ),
                 const Divider(),
+                ElevatedButton(
+                    onPressed: () async {
+                      await WiFiForIoTPlugin.disconnect();
+                    },
+                    child: const Text('Disconnect')),
                 Flexible(
                   child: Center(
                     child: accessPoints.isEmpty
@@ -123,7 +140,8 @@ class _MyAppState extends State<MyApp> {
                         : ListView.builder(
                             itemCount: accessPoints.length,
                             itemBuilder: (context, i) =>
-                                _AccessPointTile(accessPoint: accessPoints[i])),
+                                _AccessPointTile(accessPoint: accessPoints[i]),
+                          ),
                   ),
                 ),
               ],
@@ -175,21 +193,17 @@ class _AccessPointTileState extends State<_AccessPointTile> {
       );
 
   Future<void> connectToWifi(String ssid, String bssid, String password) async {
-    try {
-      final res = await WiFiForIoTPlugin.connect(
-        ssid,
-        bssid: bssid,
-        password: password,
-        joinOnce: true,
-        security: NetworkSecurity.WPA,
-        withInternet: false,
-      );
-      print(res);
-      if (res) await WiFiForIoTPlugin.forceWifiUsage(true);
-    } catch (error) {
-      print(error);
-      print('error');
-    }
+    final res = await WiFiForIoTPlugin.connect(
+      ssid,
+      bssid: bssid,
+      password: password,
+      joinOnce: true,
+      security: NetworkSecurity.WPA,
+      withInternet: false,
+    );
+    print(res);
+
+    if (res) await WiFiForIoTPlugin.forceWifiUsage(true);
   }
 
   @override
@@ -207,7 +221,6 @@ class _AccessPointTileState extends State<_AccessPointTile> {
         title: Text(title),
         subtitle: Text(widget.accessPoint.capabilities),
         onTap: () {
-          // WiFiForIoTPlugin.disconnect();
           showDialog(
             context: context,
             builder: (context) => AlertDialog(
@@ -216,23 +229,6 @@ class _AccessPointTileState extends State<_AccessPointTile> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // _buildInfo("BSSDI", widget.accessPoint.bssid),
-                    // _buildInfo("Capability", widget.accessPoint.capabilities),
-                    // _buildInfo(
-                    //     "frequency", "${widget.accessPoint.frequency}MHz"),
-                    // _buildInfo("level", widget.accessPoint.level),
-                    // _buildInfo("standard", widget.accessPoint.standard),
-                    // _buildInfo("centerFrequency0",
-                    //     "${widget.accessPoint.centerFrequency0}MHz"),
-                    // _buildInfo("centerFrequency1",
-                    //     "${widget.accessPoint.centerFrequency1}MHz"),
-                    // _buildInfo("channelWidth", widget.accessPoint.channelWidth),
-                    // _buildInfo("isPasspoint", widget.accessPoint.isPasspoint),
-                    // _buildInfo("operatorFriendlyName",
-                    //     widget.accessPoint.operatorFriendlyName),
-                    // _buildInfo("venueName", widget.accessPoint.venueName),
-                    // _buildInfo("is80211mcResponder",
-                    //     widget.accessPoint.is80211mcResponder),
                     TextField(
                       decoration: const InputDecoration(hintText: 'Password'),
                       obscureText: true,
