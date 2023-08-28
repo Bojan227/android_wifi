@@ -7,16 +7,11 @@ import 'package:wifi_scan/wifi_scan.dart';
 
 import '../../widgets/input_field.dart';
 
-class WifiItem extends StatefulWidget {
-  const WifiItem({super.key, required this.accessPoint});
+class WifiItem extends StatelessWidget {
+  WifiItem({super.key, required this.accessPoint});
 
   final WiFiAccessPoint accessPoint;
 
-  @override
-  State<WifiItem> createState() => _WifiItemState();
-}
-
-class _WifiItemState extends State<WifiItem> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   String newMessage = '';
 
@@ -25,8 +20,8 @@ class _WifiItemState extends State<WifiItem> {
       _formKey.currentState!.save();
 
       final ConnectionInfo connectionInfo = ConnectionInfo(
-          ssid: widget.accessPoint.ssid,
-          bssid: widget.accessPoint.bssid,
+          ssid: accessPoint.ssid,
+          bssid: accessPoint.bssid,
           password: newMessage);
 
       context.read<WifiBloc>().add(
@@ -37,13 +32,11 @@ class _WifiItemState extends State<WifiItem> {
 
   @override
   Widget build(BuildContext context) {
-    final signalIcon = widget.accessPoint.level >= -80
+    final signalIcon = accessPoint.level >= -80
         ? Icons.signal_wifi_4_bar
         : Icons.signal_wifi_0_bar;
 
-    final title = widget.accessPoint.ssid.isNotEmpty
-        ? widget.accessPoint.ssid
-        : "**EMPTY**";
+    final title = accessPoint.ssid.isNotEmpty ? accessPoint.ssid : "**EMPTY**";
 
     final ConnectionInfo? currentConnectionInfo =
         context.watch<WifiBloc>().state.currentWifiAccessPoint;
