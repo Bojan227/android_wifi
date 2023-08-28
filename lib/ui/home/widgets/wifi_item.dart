@@ -74,8 +74,8 @@ class _WifiItemState extends State<WifiItem> {
                     key: _formKey,
                     child: InputField(
                         handleInput: (value) => newMessage = value,
-                        obscureText: false,
-                        label: 'Message'),
+                        obscureText: true,
+                        label: 'Password'),
                   ),
                   const SizedBox(
                     height: 24,
