@@ -38,12 +38,13 @@ class WifiProvider implements IWifiProvider {
 
   @override
   Future<void> connectToWifiNetwork(ConnectionInfo connectionInfo) async {
+    print(connectionInfo.bssid);
     final response = await WiFiForIoTPlugin.connect(
       connectionInfo.ssid,
       bssid: connectionInfo.bssid,
       password: connectionInfo.password,
       joinOnce: true,
-      security: NetworkSecurity.WPA,
+      security: NetworkSecurity.NONE,
       withInternet: false,
     );
     if (!response) throw ('Failed to connect');
