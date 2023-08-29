@@ -38,7 +38,6 @@ class WifiProvider implements IWifiProvider {
 
   @override
   Future<void> connectToWifiNetwork(ConnectionInfo connectionInfo) async {
-    print(connectionInfo.bssid);
     final response = await WiFiForIoTPlugin.connect(
       connectionInfo.ssid,
       bssid: connectionInfo.bssid,
