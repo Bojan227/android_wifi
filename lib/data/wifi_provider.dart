@@ -1,5 +1,6 @@
 import 'package:wifi_iot/wifi_iot.dart';
 import 'package:wifi_networks/data/models/connection_info.dart';
+import 'package:wifi_networks/exceptions/exceptions.dart';
 import 'package:wifi_scan/wifi_scan.dart';
 
 abstract class IWifiProvider {
@@ -15,7 +16,7 @@ class WifiProvider implements IWifiProvider {
     final canGetResults = await WiFiScan.instance.canGetScannedResults();
 
     if (canGetResults != CanGetScannedResults.yes) {
-      throw Error();
+      throw ScanException(message: 'Unable to get scanned results');
     }
 
     return await WiFiScan.instance.getScannedResults();
@@ -26,7 +27,7 @@ class WifiProvider implements IWifiProvider {
     final canScan = await WiFiScan.instance.canStartScan();
 
     if (canScan == CanStartScan.noLocationServiceDisabled) {
-      throw ('Please enable your location');
+      throw LocationException(message: 'Please enable your location');
     }
 
     if (canScan != CanStartScan.yes) {
@@ -46,7 +47,9 @@ class WifiProvider implements IWifiProvider {
       security: NetworkSecurity.NONE,
       withInternet: false,
     );
-    if (!response) throw ('Failed to connect');
+    if (!response) {
+      throw ConnectionException(message: 'Failed to Connect. Try Again');
+    }
 
     if (response) await WiFiForIoTPlugin.forceWifiUsage(true);
   }

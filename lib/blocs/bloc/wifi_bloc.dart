@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 import 'package:wifi_networks/data/models/connection_info.dart';
 import 'package:wifi_networks/data/wifi_repo_impl.dart';
+import 'package:wifi_networks/exceptions/exceptions.dart';
 import 'package:wifi_scan/wifi_scan.dart';
 
 part 'wifi_event.dart';
@@ -32,6 +33,8 @@ class WifiBloc extends Bloc<WifiEvent, WifiState> {
       if (result) {
         await _onGetWifiNetworks(const GetWifiNetworks(), emit);
       }
+    } on LocationException catch (error) {
+      emit(state.copyWith(status: Status.failure, errorMessage: error.message));
     } catch (error) {
       emit(state.copyWith(
           status: Status.failure, errorMessage: error.toString()));
@@ -44,9 +47,8 @@ class WifiBloc extends Bloc<WifiEvent, WifiState> {
 
       emit(state.copyWith(
           accessPoints: wifiAccessPoints, status: Status.success));
-    } catch (error) {
-      emit(state.copyWith(
-          status: Status.failure, errorMessage: error.toString()));
+    } on ScanException catch (error) {
+      emit(state.copyWith(status: Status.failure, errorMessage: error.message));
     }
   }
 
@@ -59,6 +61,9 @@ class WifiBloc extends Bloc<WifiEvent, WifiState> {
       emit(state.copyWith(
           currentWifiAccessPoint: event.connectionInfo,
           connectionStatus: Status.success));
+    } on ConnectionException catch (error) {
+      emit(state.copyWith(
+          connectionStatus: Status.failure, errorMessage: error.message));
     } catch (error) {
       emit(state.copyWith(connectionStatus: Status.failure));
     }
